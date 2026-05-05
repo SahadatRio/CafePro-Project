@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CafePro - Login</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="css/all.min.css">
+</head>
+<body class="bg-cover bg-center min-h-screen flex items-center justify-center relative" style="background-image: url('https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=1920&auto=format&fit=crop');">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+    <div class="relative z-10 bg-white/95 p-10 rounded-3xl shadow-2xl w-full max-w-md border-t-8 border-amber-600 transform transition-all hover:scale-105 duration-300">
+        <div class="text-center mb-8">
+            <i class="fa-solid fa-mug-hot text-5xl text-amber-600 mb-3"></i>
+            <h2 class="text-3xl font-extrabold text-gray-800">Cafe<span class="text-amber-600">Pro</span></h2>
+            <p class="text-gray-500 text-sm mt-1">Manage your cafe with elegance</p>
+        </div>
+        <div class="space-y-5">
+            <div class="relative">
+                <i class="fa-solid fa-user absolute left-4 top-3.5 text-gray-400"></i>
+                <input type="text" id="username" class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none" placeholder="Username">
+            </div>
+            <div class="relative">
+                <i class="fa-solid fa-lock absolute left-4 top-3.5 text-gray-400"></i>
+                <input type="password" id="password" class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none" placeholder="Password">
+            </div>
+            <button onclick="login()" id="loginBtn" class="w-full bg-gradient-to-r from-amber-600 to-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-xl transition-all">
+                Login to Dashboard
+            </button>
+            <p class="text-center mt-6 text-sm text-gray-600">New customer? <a href="register.html" class="text-amber-600 font-bold hover:underline">Register Here</a></p>
+        </div>
+    </div>
+
+    <script>
+        // API Endpoint from Render
+        const API_URL = 'https://cafepro-project.onrender.com/api/orders';
+
+        async function login() {
+            const userIn = document.getElementById('username').value;
+            const passIn = document.getElementById('password').value;
+            const btn = document.getElementById('loginBtn');
+            
+            if (!userIn || !passIn) {
+                return alert("Please enter both Username and Password");
+            }
+
+            // UI Feedback
+            btn.innerText = "Authenticating...";
+            btn.disabled = true;
+
+            try {
+                // Fetch user data from MongoDB via Render API
+                const response = await fetch(API_URL);
+                const data = await response.json();
+
+                // Validate user credentials against database records
+                const validUser = data.find(u => u.username === userIn && u.password === passIn);
+
+                if (validUser) {
+                    // Store session in localStorage
+                    localStorage.setItem('currentUser', JSON.stringify(validUser));
+                    
+                    // Redirect based on the assigned role (e.g., admin.html, staff.html)
+                    window.location.href = validUser.role.toLowerCase() + '.html'; 
+                } else { 
+                    // Fallback for default admin
+                    if(userIn === 'admin' && passIn === '123') {
+                        const adminUser = { username: 'admin', role: 'admin' };
+                        localStorage.setItem('currentUser', JSON.stringify(adminUser));
+                        window.location.href = 'admin.html';
+                    } else {
+                        alert("Error: Invalid Credentials!");
+                        btn.innerText = "Login to Dashboard";
+                        btn.disabled = false;
+                    }
+                }
+            } catch (err) {
+                console.error("Login Error:", err);
+                alert("Server Error: The backend is currently unavailable. Please try again in a few seconds.");
+                btn.innerText = "Login to Dashboard";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

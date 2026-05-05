@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Kitchen Staff - CafePro</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="css/all.min.css">
+</head>
+<body class="bg-stone-100 pb-10 font-sans text-stone-800" onload="loadStaffOrders()">
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-md px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <div class="bg-orange-100 text-orange-600 p-2 rounded-lg"><i class="fa-solid fa-fire-burner text-xl"></i></div>
+            <h1 class="text-2xl font-black text-stone-800">Kitchen Dashboard</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="font-bold text-stone-500">
+                <i class="fa-solid fa-user-circle text-orange-500 mr-1"></i> 
+                <span id="sName" class="text-stone-800"></span>
+            </span>
+            <button onclick="logout()" class="text-stone-400 hover:text-red-600 transition duration-300">
+                <i class="fa-solid fa-power-off text-xl"></i>
+            </button>
+        </div>
+    </nav>
+
+    <div class="max-w-6xl mx-auto px-6 mt-10">
+        <div class="flex justify-between items-center mb-8">
+            <h3 class="text-2xl font-black text-stone-800">Active Kitchen Queue</h3>
+            <span class="bg-white border px-4 py-2 rounded-full text-xs font-bold text-stone-500 shadow-sm">
+                Real-time MongoDB Updates
+            </span>
+        </div>
+        
+        <!-- Orders Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="orderGrid"></div>
+    </div>
+
+    <script>
+        const API_URL = '[https://cafepro-project.onrender.com/api/orders](https://cafepro-project.onrender.com/api/orders)';
+        const cur = JSON.parse(localStorage.getItem('currentUser'));
+
+        async function loadStaffOrders() {
+            if (!cur) window.location.href = 'index.html';
+            document.getElementById('sName').innerText = cur.username;
+
+            try {
+                const response = await fetch(API_URL);
+                const orders = await response.json();
+                
+                // Filter orders relevant to the kitchen
+                let kitchenView = orders.filter(x => 
+                    x.status === 'Pending' || 
+                    x.status === 'Processing' || 
+                    (x.status === 'Ready' && x.type === 'Dine-In')
+                );
+                
+                const grid = document.getElementById('orderGrid');
+                if (kitchenView.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full text-center py-20 text-stone-400 font-bold">No pending orders in kitchen.</div>`;
+                    return;
+                }
+
+                grid.innerHTML = kitchenView.reverse().map(x => {
+                    let borderStyle = x.status === 'Processing' ? 'border-blue-500' : (x.status === 'Ready' ? 'border-emerald-500' : 'border-stone-200');
+                    let statusBadge = x.status === 'Ready' ? 'bg-emerald-100 text-emerald-700' : (x.status === 'Processing' ? 'bg-blue-100 text-blue-700' : 'bg-stone-100 text-stone-500');
+                    
+                    return `
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border-t-4 ${borderStyle} transition hover:shadow-md">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <span class="text-[10px] font-black text-stone-400 uppercase tracking-widest">#${x.id} | ${x.type}</span>
+                                <h3 class="text-xl font-bold text-stone-800 mt-1">${x.item}</h3>
+                            </div>
+                            <span class="${statusBadge} text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-tighter">${x.status}</span>
+                        </div>
+
+                        <div class="bg-stone-50 p-4 rounded-2xl space-y-2 mb-6">
+                            <p class="text-sm font-medium"><i class="fa-solid fa-location-dot text-stone-400 mr-2"></i> ${x.address}</p>
+                            <p class="text-xs text-stone-500"><i class="fa-solid fa-user text-stone-400 mr-2"></i> ${x.customer}</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-2">
+                            ${x.status === 'Pending' ? `
+                                <button onclick="updateStatus(${x.id}, 'Processing')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-sm">
+                                    Start Cooking
+                                </button>
+                            ` : ''}
+
+                            ${x.status === 'Processing' ? `
+                                <button onclick="updateStatus(${x.id}, 'Ready')" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition shadow-sm">
+                                    Mark as Ready
+                                </button>
+                            ` : ''}
+
+                            ${x.status === 'Ready' && x.type === 'Dine-In' ? `
+                                <button onclick="updateStatus(${x.id}, 'Received')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition shadow-md">
+                                    Serve to Table
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+            } catch (err) {
+                console.error("Fetch error:", err);
+            }
+        }
+
+        async function updateStatus(id, s) {
+            try {
+                let updateBody = { status: s, handledBy: cur.username };
+                
+                // If serving Dine-In, also log delivery info
+                if(s === 'Received') {
+                    updateBody.deliveredBy = cur.username;
+                    updateBody.completionTime = new Date().toLocaleString();
+                }
+
+                const response = await fetch(`${API_URL}/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateBody)
+                });
+
+                if (response.ok) {
+                    loadStaffOrders();
+                }
+            } catch (err) {
+                console.error("Update error:", err);
+                alert("Server connection failed!");
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

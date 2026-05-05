@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Manager - CafePro</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="css/all.min.css">
+</head>
+<body class="bg-stone-50 pb-10" onload="loadReport()">
+    <nav class="bg-white shadow px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+        <h1 class="text-2xl font-black text-stone-800">Manager <span class="text-indigo-600">Overview</span></h1>
+        <button onclick="logout()" class="text-red-500 font-bold hover:text-red-700 transition flex items-center gap-2">
+            <i class="fa-solid fa-power-off"></i> Logout
+        </button>
+    </nav>
+
+    <div class="max-w-6xl mx-auto px-6 mt-10 space-y-8">
+        <!-- Dashboard Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-indigo-600 p-8 rounded-3xl text-white shadow-lg">
+                <h3 class="text-sm uppercase font-bold opacity-80">Total Orders</h3>
+                <p id="tOrders" class="text-5xl font-black mt-2">0</p>
+            </div>
+            <div class="bg-emerald-600 p-8 rounded-3xl text-white shadow-lg">
+                <h3 class="text-sm uppercase font-bold opacity-80">Total Revenue</h3>
+                <p class="text-5xl font-black mt-2">৳<span id="tRevenue">0</span></p>
+            </div>
+        </div>
+
+        <!-- Detailed Report Table -->
+        <div class="bg-white rounded-3xl border shadow-sm overflow-hidden">
+            <div class="p-6 border-b flex justify-between items-center bg-white">
+                <h3 class="font-bold text-xl text-stone-800">Detailed Income Sheet</h3>
+                <button onclick="downloadExcel()" class="bg-stone-800 hover:bg-black text-white px-6 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2">
+                    <i class="fa-solid fa-file-csv"></i> Download CSV
+                </button>
+            </div>
+            <div class="p-6 overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-stone-50 text-stone-400 text-[10px] uppercase tracking-wider">
+                        <tr>
+                            <th class="p-4 border-b">Order ID</th>
+                            <th class="p-4 border-b">Customer</th>
+                            <th class="p-4 border-b">Item</th>
+                            <th class="p-4 border-b">Price</th>
+                            <th class="p-4 border-b">Handled By</th>
+                            <th class="p-4 border-b">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mTable" class="text-sm text-stone-700">
+                        <!-- Data will load here from MongoDB -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '[https://cafepro-project.onrender.com/api/orders](https://cafepro-project.onrender.com/api/orders)';
+
+        async function loadReport() {
+            try {
+                const response = await fetch(API_URL);
+                const orders = await response.json();
+                
+                // Update Dashboard Stats
+                document.getElementById('tOrders').innerText = orders.length;
+                
+                // Calculate Total Revenue (Only from completed/received orders)
+                const revenue = orders.reduce((sum, order) => {
+                    return order.status === 'Received' ? sum + (order.price || 0) : sum;
+                }, 0);
+                document.getElementById('tRevenue').innerText = revenue;
+
+                // Update Table
+                const tableBody = document.getElementById('mTable');
+                if (orders.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-stone-400">No data found in database.</td></tr>`;
+                    return;
+                }
+
+                tableBody.innerHTML = orders.slice().reverse().map(x => `
+                    <tr class="border-b hover:bg-stone-50 transition">
+                        <td class="p-4 font-mono text-xs">#${x.id}</td>
+                        <td class="p-4 font-bold">${x.customer}</td>
+                        <td class="p-4">${x.item}</td>
+                        <td class="p-4 text-emerald-600 font-black">৳${x.price}</td>
+                        <td class="p-4 font-bold text-indigo-500">${x.handledBy || 'Unassigned'}</td>
+                        <td class="p-4">
+                            <span class="px-2 py-1 rounded-md text-[10px] font-black uppercase ${x.status === 'Received' ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}">
+                                ${x.status}
+                            </span>
+                        </td>
+                    </tr>`).join('');
+
+            } catch (err) {
+                console.error("Report Load Error:", err);
+                document.getElementById('mTable').innerHTML = `<tr><td colspan="6" class="p-10 text-center text-red-500 font-bold">Error: Backend server is offline!</td></tr>`;
+            }
+        }
+
+        async function downloadExcel() {
+            try {
+                const response = await fetch(API_URL);
+                const o = await response.json();
+                
+                let csv = "Order ID,Customer,Item,Price,Handled By,Status,Order Time\n" + 
+                    o.map(x => `${x.id},${x.customer},${x.item},${x.price},${x.handledBy || 'None'},${x.status},${x.orderTime}`).join("\n");
+                
+                const blob = new Blob([csv], { type: 'text/csv' }); 
+                const url = URL.createObjectURL(blob); 
+                const a = document.createElement("a"); 
+                a.href = url; 
+                a.download = `CafePro_Income_Report_${new Date().toLocaleDateString()}.csv`; 
+                a.click();
+            } catch (err) {
+                alert("Failed to export report.");
+            }
+        }
+
+        function logout() { 
+            localStorage.removeItem('currentUser'); 
+            window.location.href = 'index.html'; 
+        }
+    </script>
+</body>
+</html>

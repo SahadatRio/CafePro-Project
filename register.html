@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CafePro - Register</title>
+    <script src="tailwind.js"></script>
+    <link rel="stylesheet" href="css/all.min.css">
+</head>
+<body class="bg-cover bg-center min-h-screen flex items-center justify-center relative" style="background-image: url('https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=1920&auto=format&fit=crop');">
+    <!-- Background Overlay -->
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+    
+    <!-- Registration Card -->
+    <div class="relative z-10 bg-white/95 p-10 rounded-3xl shadow-2xl w-full max-w-md border-t-8 border-blue-600">
+        <h2 class="text-3xl font-extrabold text-center mb-8 text-gray-800">Join Us</h2>
+        <div class="space-y-4">
+            
+            <!-- Username -->
+            <input type="text" id="regUser" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="Username (Required)*">
+            
+            <!-- Email -->
+            <input type="email" id="regEmail" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="Email (Required)*">
+            
+            <!-- Phone Number -->
+            <div class="relative flex">
+                <div class="flex items-center justify-center pl-4 pr-3 bg-gray-200 border border-gray-200 rounded-l-xl border-r-0">
+                    <i class="fa-solid fa-phone text-gray-500 mr-2"></i>
+                    <span class="text-gray-700 font-bold">+88</span>
+                </div>
+                <input type="tel" id="regPhone" maxlength="11" oninput="this.value = this.value.replace(/[^0-9]/g, '')" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-r-xl outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="01XXXXXXXXX (11 Digits)*">
+            </div>
+
+            <!-- Password -->
+            <input type="password" id="regPass" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="Password (Required)*">
+            
+            <!-- Register Button -->
+            <button onclick="register()" id="regBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md mt-2">Create Account</button>
+            
+            <!-- Back to Login Link -->
+            <p class="text-center text-sm mt-4 text-gray-600">Already a member? <a href="index.html" class="text-blue-600 font-bold hover:underline">Back to Login</a></p>
+        </div>
+    </div>
+
+    <!-- Logic Script -->
+    <script>
+        // API Endpoint from Render
+        const API_URL = 'https://cafepro-project.onrender.com/api/orders';
+
+        async function register() {
+            const u = document.getElementById('regUser').value.trim();
+            const e = document.getElementById('regEmail').value.trim();
+            const ph = document.getElementById('regPhone').value.trim();
+            const p = document.getElementById('regPass').value.trim();
+            const btn = document.getElementById('regBtn');
+            
+            // Validation Checks
+            if(!u || !e || !ph || !p) return alert("Error: Please fill all fields!");
+            if(!e.includes('@') || !e.includes('.')) return alert("Error: Invalid Email Format!");
+            if(ph.length !== 11) return alert("Error: Phone number must be exactly 11 digits!");
+            
+            // UI Feedback
+            btn.innerText = "Creating Account...";
+            btn.disabled = true;
+
+            // Create New User Object
+            const newUser = { 
+                username: u, 
+                email: e, 
+                phone: "+88" + ph, 
+                password: p, 
+                role: 'customer' 
+            };
+
+            try {
+                // Send data to MongoDB via Render API
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newUser),
+                });
+
+                if (response.ok) {
+                    // Set Auto-Login Session
+                    localStorage.setItem('currentUser', JSON.stringify(newUser));
+                    
+                    // Success and Redirect
+                    alert("Success: Welcome to CafePro! Account created."); 
+                    window.location.href = 'customer.html';
+                } else {
+                    alert("Error: Registration failed. Username might be taken.");
+                    btn.innerText = "Create Account";
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                console.error("Registration Error:", err);
+                alert("Server Error: Database is currently unreachable. Please try again.");
+                btn.innerText = "Create Account";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
