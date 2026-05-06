@@ -21,7 +21,7 @@
             <!-- Email -->
             <input type="email" id="regEmail" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="Email (Required)*">
             
-            <!-- Phone Number -->
+            <!-- Phone Number with Country Code -->
             <div class="relative flex">
                 <div class="flex items-center justify-center pl-4 pr-3 bg-gray-200 border border-gray-200 rounded-l-xl border-r-0">
                     <i class="fa-solid fa-phone text-gray-500 mr-2"></i>
@@ -47,53 +47,64 @@
         const API_URL = 'https://cafepro-project.onrender.com/api/orders';
 
         async function register() {
-            const u = document.getElementById('regUser').value.trim();
-            const e = document.getElementById('regEmail').value.trim();
-            const ph = document.getElementById('regPhone').value.trim();
-            const p = document.getElementById('regPass').value.trim();
+            const u = document.getElementById('regUser').value;
+            const e = document.getElementById('regEmail').value;
+            const ph = document.getElementById('regPhone').value;
+            const p = document.getElementById('regPass').value;
             const btn = document.getElementById('regBtn');
             
-            // Validation Checks
-            if(!u || !e || !ph || !p) return alert("Error: Please fill all fields!");
-            if(!e.includes('@') || !e.includes('.')) return alert("Error: Invalid Email Format!");
-            if(ph.length !== 11) return alert("Error: Phone number must be exactly 11 digits!");
+            // 1. Validation Checks
+            if(!u || !e || !ph || !p) return alert("⚠️ Error: Fill all fields!");
+            if(!e.includes('@') || !e.includes('.')) return alert("⚠️ Error: Invalid Email Format!");
+            if(ph.length !== 11) return alert("⚠️ Error: Phone number must be exactly 11 digits!");
             
             // UI Feedback
             btn.innerText = "Creating Account...";
             btn.disabled = true;
 
-            // Create New User Object
-            const newUser = { 
-                username: u, 
-                email: e, 
-                phone: "+88" + ph, 
-                password: p, 
-                role: 'customer' 
-            };
-
             try {
-                // Send data to MongoDB via Render API
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newUser),
-                });
-
-                if (response.ok) {
-                    // Set Auto-Login Session
-                    localStorage.setItem('currentUser', JSON.stringify(newUser));
-                    
-                    // Success and Redirect
-                    alert("Success: Welcome to CafePro! Account created."); 
-                    window.location.href = 'customer.html';
-                } else {
-                    alert("Error: Registration failed. Username might be taken.");
+                // 2. Database Duplicate Check (Fetch current users)
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                
+                if(data.find(user => user.username === u)) {
+                    alert("❌ Username already taken!");
                     btn.innerText = "Create Account";
                     btn.disabled = false;
+                    return;
                 }
+                
+                // 3. Create New User Data Object
+                let fullPhone = "+88" + ph;
+                const newUser = { 
+                    username: u, 
+                    email: e, 
+                    phone: fullPhone, 
+                    password: p, 
+                    role: 'customer',
+                    type: 'user_account' // Tag to identify as a user record
+                };
+
+                // 4. Save to MongoDB via POST
+                const saveRes = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newUser)
+                });
+
+                if(saveRes.ok) {
+                    // 5. Auto-Login Setup for local session
+                    localStorage.setItem('currentUser', JSON.stringify(newUser));
+                    
+                    alert("✅ Welcome to CafePro! Account created successfully."); 
+                    window.location.href = 'customer.html';
+                } else {
+                    throw new Error("Failed to save data");
+                }
+
             } catch (err) {
                 console.error("Registration Error:", err);
-                alert("Server Error: Database is currently unreachable. Please try again.");
+                alert("Server Error: Unable to register right now. Please try again in a moment.");
                 btn.innerText = "Create Account";
                 btn.disabled = false;
             }

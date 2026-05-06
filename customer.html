@@ -9,70 +9,206 @@
 <body class="bg-stone-50 pb-10" onload="initCustomer()">
     <nav class="bg-white shadow px-6 py-4 flex justify-between items-center sticky top-0 z-50">
         <h1 class="text-2xl font-black text-stone-800">Cafe<span class="text-amber-600">Pro</span></h1>
-        <span class="font-bold text-stone-600">Welcome, <span id="cusName" class="text-amber-600">User</span></span>
-        <button onclick="logout()" class="text-red-500 font-bold text-xl"><i class="fa-solid fa-power-off"></i></button>
+        <span class="font-bold text-stone-600">Welcome, <span id="cusName" class="text-amber-600"></span></span>
+        <button onclick="logout()" class="text-red-500 font-bold"><i class="fa-solid fa-power-off"></i></button>
     </nav>
 
     <div class="max-w-7xl mx-auto px-6 mt-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div class="lg:col-span-2">
-            <h3 class="text-2xl font-black mb-6">Our Menu</h3>
-            <!-- This ID matches the load function -->
+            <h3 class="text-2xl font-black mb-6">Menu</h3>
             <div id="dynamicMenu" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <p class="text-stone-400">Fetching delicious items...</p>
+                <p class="text-stone-400">Loading Cloud Menu...</p>
             </div>
         </div>
         <div>
             <h3 class="text-2xl font-black mb-6">My Live Orders</h3>
             <div id="myOrders" class="space-y-4">
-                <p class="text-stone-400 text-sm">Log in to see your orders.</p>
+                <p class="text-stone-400">Fetching live orders...</p>
             </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal (Design remains same) -->
+    <div id="payModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h3 class="text-2xl font-bold mb-4 text-center">Checkout</h3>
+            
+            <div id="deliveryStep" class="space-y-4">
+                <p class="font-bold text-stone-600">Order Type:</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="setOrderType('Dine-In')" id="btnDine" class="py-3 border-2 rounded-xl font-bold border-stone-200">Dine-In</button>
+                    <button onclick="setOrderType('Home Delivery')" id="btnHome" class="py-3 border-2 rounded-xl font-bold border-stone-200">Home Delivery</button>
+                </div>
+                <div id="addressBox" class="hidden">
+                    <textarea id="orderAddress" class="w-full p-3 bg-stone-50 border rounded-xl" placeholder="Address or Table No..."></textarea>
+                </div>
+                <button onclick="goToPayment()" class="w-full bg-stone-900 text-white font-bold py-3 rounded-xl mt-4">Next</button>
+            </div>
+
+            <div id="payStep" class="hidden space-y-3">
+                <button onclick="showInputForm('bKash')" class="w-full bg-pink-600 text-white font-bold py-3 rounded-xl">bKash</button>
+                <button onclick="showInputForm('Card')" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl">Card</button>
+                <button onclick="finalizeOrder('Cash on Delivery')" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl">Cash on Delivery</button>
+            </div>
+
+            <div id="payInputForm" class="hidden space-y-4">
+                <p id="payInstruction" class="text-center text-xs font-bold text-stone-500 uppercase"></p>
+                <input type="text" id="payAccountNum" oninput="this.value = this.value.replace(/[^0-9]/g, '')" class="w-full p-3 border-2 rounded-xl text-center font-bold" placeholder="Account Number">
+                <input type="password" id="payPinNum" maxlength="4" class="w-full p-3 border-2 rounded-xl text-center" placeholder="4-Digit PIN">
+                <button onclick="validateAndFinalize()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl">Confirm & Pay</button>
+            </div>
+
+            <button onclick="closeModal()" class="w-full mt-4 text-stone-400 font-bold">Cancel</button>
         </div>
     </div>
 
     <script>
         const API_URL = 'https://cafepro-project.onrender.com/api/orders';
         const user = JSON.parse(localStorage.getItem('currentUser'));
+        let tempOrder = null, selectedMethod = '', orderType = '';
 
-        function initCustomer() {
-            if(!user) {
-                window.location.href = 'index.html';
-                return;
-            }
-            document.getElementById('cusName').innerText = user.username;
-            loadMenu();
+        function initCustomer() { 
+            if(!user) { window.location.href = 'index.html'; return; }
+            document.getElementById('cusName').innerText = user.username; 
+            loadMenu(); 
+            loadOrders(); 
         }
 
+        // --- Load Menu from MongoDB ---
         async function loadMenu() {
-            const menuContainer = document.getElementById('dynamicMenu');
             try {
-                const response = await fetch(API_URL);
-                const allData = await response.json();
+                const res = await fetch(API_URL);
+                const data = await res.json();
+                const menu = data.filter(x => x.type === 'menu_item');
+                
+                document.getElementById('dynamicMenu').innerHTML = menu.map(x => `
+                    <div class="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm">
+                        <h4 class="text-xl font-bold text-stone-800">${x.name}</h4>
+                        <p class="text-amber-600 font-bold">৳${x.price}</p>
+                        <button onclick="openPay('${x.name}', ${x.price})" class="w-full mt-4 bg-stone-900 text-white py-2 rounded-xl hover:bg-amber-600 transition">Order Now</button>
+                    </div>`).join('');
+            } catch (err) { console.error("Menu Load Error:", err); }
+        }
 
-                // Only show menu items added by admin
-                const menuItems = allData.filter(item => item.type === 'menu_item');
-
-                if(menuItems.length > 0) {
-                    menuContainer.innerHTML = menuItems.map(item => `
-                        <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 transform hover:scale-105 transition-all">
-                            <h3 class="text-xl font-bold text-gray-800">${item.name}</h3>
-                            <p class="text-amber-600 font-extrabold mt-2">${item.price} BDT</p>
-                            <button onclick="alert('Ordering system is ready for presentation!')" class="mt-4 w-full bg-amber-600 text-white py-2 rounded-xl font-bold hover:bg-amber-700">
-                                Order Now
-                            </button>
+        // --- Load My Orders from MongoDB ---
+        async function loadOrders() {
+            try {
+                const res = await fetch(API_URL);
+                const data = await res.json();
+                // ফিল্টার করে শুধু এই কাস্টমারের অর্ডারগুলো নেওয়া হচ্ছে
+                const my = data.filter(x => x.customer === user.username && x.status);
+                
+                document.getElementById('myOrders').innerHTML = my.reverse().map(x => `
+                    <div class="bg-white p-4 border rounded-2xl mb-2 shadow-sm">
+                        <div class="flex justify-between font-bold text-stone-800">
+                            <span>${x.item}</span>
+                            <span class="text-xs text-indigo-600 uppercase">${x.status}</span>
                         </div>
-                    `).join('');
-                } else {
-                    menuContainer.innerHTML = '<p class="text-stone-500">No items available. Admin needs to add items.</p>';
-                }
-            } catch (err) {
-                menuContainer.innerHTML = '<p class="text-red-500">Render Server is waking up... Please refresh in 30 seconds.</p>';
-            }
+                        <p class="text-[10px] text-stone-400 mt-1">${x.orderTime}</p>
+                        ${x.status !== 'Received' ? `
+                            <p class="mt-2 text-center bg-stone-50 p-2 rounded-xl border border-dashed font-bold text-emerald-600">OTP: ${x.securityOTP}</p>
+                            <button onclick="confirmOrderReceived('${x._id}', ${x.id})" class="w-full mt-3 bg-emerald-600 text-white text-xs py-2 rounded-xl font-bold shadow-sm transition">Confirm Received</button>
+                        ` : '<p class="text-[10px] text-emerald-600 font-bold mt-2 text-center border-t pt-2">✓ Order Completed</p>'}
+                    </div>`).join('');
+            } catch (err) { console.error("Order Load Error:", err); }
         }
 
-        function logout() {
-            localStorage.removeItem('currentUser');
-            window.location.href = 'index.html';
+        // --- Confirm Order Received (PUT to MongoDB) ---
+        async function confirmOrderReceived(mongoId, simpleId) {
+            try {
+                const updateData = { 
+                    status: 'Received', 
+                    completionTime: new Date().toLocaleString() 
+                };
+                
+                const res = await fetch(`${API_URL}/${mongoId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (res.ok) {
+                    alert("Order confirmed as received!");
+                    loadOrders();
+                }
+            } catch (err) { alert("Confirm Failed!"); }
         }
+
+        // --- Finalize Order (POST to MongoDB) ---
+        async function finalizeOrder(m) {
+            const newOrder = { 
+                id: Math.floor(1000 + Math.random()*8999), 
+                customer: user.username, 
+                item: tempOrder.n, 
+                price: tempOrder.p, 
+                status: 'Pending', 
+                payType: m,
+                type: orderType,
+                address: document.getElementById('orderAddress').value,
+                securityOTP: Math.floor(1000 + Math.random() * 9000),
+                orderTime: new Date().toLocaleString(),
+                handledBy: 'Waiting...',
+                deliveredBy: '---'
+            };
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newOrder)
+                });
+                
+                if (res.ok) {
+                    alert("Order Placed Successfully in Cloud!");
+                    closeModal();
+                    loadOrders();
+                }
+            } catch (err) { alert("Order Failed!"); }
+        }
+
+        // --- UI Modal Functions (Design preserved) ---
+        function openPay(n, p) { 
+            tempOrder = { n, p }; 
+            document.getElementById('deliveryStep').classList.remove('hidden');
+            document.getElementById('payStep').classList.add('hidden');
+            document.getElementById('payInputForm').classList.add('hidden');
+            document.getElementById('payModal').classList.remove('hidden'); 
+        }
+
+        function setOrderType(type) {
+            orderType = type;
+            document.getElementById('addressBox').classList.remove('hidden');
+            document.getElementById('btnDine').className = type === 'Dine-In' ? 'py-3 border-2 rounded-xl font-bold border-emerald-500 bg-emerald-50' : 'py-3 border-2 rounded-xl font-bold border-stone-200';
+            document.getElementById('btnHome').className = type === 'Home Delivery' ? 'py-3 border-2 rounded-xl font-bold border-emerald-500 bg-emerald-50' : 'py-3 border-2 rounded-xl font-bold border-stone-200';
+        }
+
+        function goToPayment() {
+            if(!orderType || !document.getElementById('orderAddress').value) return alert("Select type and enter details!");
+            document.getElementById('deliveryStep').classList.add('hidden');
+            document.getElementById('payStep').classList.remove('hidden');
+        }
+
+        function showInputForm(m) {
+            selectedMethod = m;
+            document.getElementById('payStep').classList.add('hidden');
+            document.getElementById('payInputForm').classList.remove('hidden');
+            const accInput = document.getElementById('payAccountNum');
+            accInput.value = '';
+            document.getElementById('payInstruction').innerText = m === 'bKash' ? "Enter 11-Digit bKash Number" : "Enter 16-Digit Card Number";
+            accInput.setAttribute('maxlength', m === 'bKash' ? '11' : '16');
+        }
+
+        function validateAndFinalize() {
+            const acc = document.getElementById('payAccountNum').value;
+            const pin = document.getElementById('payPinNum').value;
+            if (selectedMethod === 'bKash' && acc.length !== 11) return alert("bKash must be 11 digits");
+            if (selectedMethod === 'Card' && acc.length !== 16) return alert("Card must be 16 digits");
+            if (pin.length < 4) return alert("PIN must be 4 digits");
+            finalizeOrder(selectedMethod);
+        }
+
+        function closeModal() { document.getElementById('payModal').classList.add('hidden'); }
+        function logout() { localStorage.removeItem('currentUser'); window.location.href = 'index.html'; }
     </script>
 </body>
 </html>
