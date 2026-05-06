@@ -111,16 +111,37 @@
                 </div>`).join('');
         }
 
-        function addMenu() {
-            const n = document.getElementById('itemName').value, p = document.getElementById('itemPrice').value;
-            if(!n || !p) return;
-            let m = JSON.parse(localStorage.getItem('cafeMenu')) || [];
-            m.push({ id: Date.now(), name: n, price: parseFloat(p), available: true });
-            localStorage.setItem('cafeMenu', JSON.stringify(m));
-            document.getElementById('itemName').value = ''; 
+        async function addMenu() {
+    const itemName = document.getElementById('itemName').value;
+    const itemPrice = document.getElementById('itemPrice').value;
+    const API_URL = 'https://cafepro-project.onrender.com/api/orders';
+
+    if(!itemName || !itemPrice) return alert("Please fill all fields!");
+
+    const newItem = {
+        name: itemName,
+        price: itemPrice,
+        type: 'menu_item', // This tag helps us separate menu items from customer orders
+        available: true
+    };
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newItem)
+        });
+
+        if(response.ok) {
+            alert("Success: Item added to database!");
+            document.getElementById('itemName').value = '';
             document.getElementById('itemPrice').value = '';
-            loadMenu();
         }
+    } catch (err) {
+        console.error("Error adding item:", err);
+        alert("Server Error: Check your internet or Render status.");
+    }
+}
 
         function toggleStatus(id) { 
             let m = JSON.parse(localStorage.getItem('cafeMenu')); 

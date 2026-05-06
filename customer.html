@@ -70,15 +70,40 @@
             loadOrders(); 
         }
         
-        function loadMenu() {
-            let m = JSON.parse(localStorage.getItem('cafeMenu')) || [];
-            document.getElementById('dynamicMenu').innerHTML = m.map(x => `
-                <div class="bg-white p-6 rounded-3xl border ${x.available ? '' : 'opacity-50'}">
-                    <h4 class="text-xl font-bold">${x.name}</h4>
-                    <p class="text-amber-600 font-bold">৳${x.price}</p>
-                    <button ${x.available ? `onclick="openPay('${x.name}', ${x.price})"` : 'disabled'} class="w-full mt-4 bg-stone-900 text-white py-2 rounded-xl">Order Now</button>
-                </div>`).join('');
+       async function displayMenu() {
+    const API_URL = 'https://cafepro-project.onrender.com/api/orders';
+    const menuGrid = document.getElementById('menu-grid'); // Make sure your HTML has an element with this ID
+
+    try {
+        const response = await fetch(API_URL);
+        const allData = await response.json();
+
+        // Filtering data to only show objects that are 'menu_item'
+        const menuItems = allData.filter(item => item.type === 'menu_item');
+
+        if(menuItems.length > 0) {
+            menuGrid.innerHTML = ''; // Clearing old data
+            menuItems.forEach(item => {
+                menuGrid.innerHTML += `
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 transform hover:scale-105 transition-all">
+                        <h3 class="text-xl font-bold text-gray-800">${item.name}</h3>
+                        <p class="text-amber-600 font-extrabold mt-2">${item.price} BDT</p>
+                        <button onclick="addToCart('${item.name}', ${item.price})" class="mt-4 w-full bg-amber-600 text-white py-2 rounded-xl font-bold hover:bg-amber-700 transition">
+                            Add to Order
+                        </button>
+                    </div>
+                `;
+            });
+        } else {
+            menuGrid.innerHTML = '<p class="text-center text-gray-500">No items available in the menu yet.</p>';
         }
+    } catch (err) {
+        console.error("Error fetching menu:", err);
+    }
+}
+
+// Automatically load menu when page opens
+window.onload = displayMenu;
 
         function openPay(n, p) { 
             tempOrder = { n, p }; 
