@@ -8,22 +8,16 @@
 </head>
 <body class="bg-cover bg-center min-h-screen flex items-center justify-center relative" style="background-image: url('https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=1920&auto=format&fit=crop');">
     <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-    <div class="relative z-10 bg-white/95 p-10 rounded-3xl shadow-2xl w-full max-w-md border-t-8 border-amber-600 transform transition-all hover:scale-105 duration-300">
+    <div class="relative z-10 bg-white/95 p-10 rounded-3xl shadow-2xl w-full max-w-md border-t-8 border-amber-600">
         <div class="text-center mb-8">
             <i class="fa-solid fa-mug-hot text-5xl text-amber-600 mb-3"></i>
             <h2 class="text-3xl font-extrabold text-gray-800">Cafe<span class="text-amber-600">Pro</span></h2>
             <p class="text-gray-500 text-sm mt-1">Manage your cafe with elegance</p>
         </div>
         <div class="space-y-5">
-            <div class="relative">
-                <i class="fa-solid fa-user absolute left-4 top-3.5 text-gray-400"></i>
-                <input type="text" id="username" class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none" placeholder="Username">
-            </div>
-            <div class="relative">
-                <i class="fa-solid fa-lock absolute left-4 top-3.5 text-gray-400"></i>
-                <input type="password" id="password" class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none" placeholder="Password">
-            </div>
-            <button onclick="login()" id="loginBtn" class="w-full bg-gradient-to-r from-amber-600 to-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-xl transition-all">
+            <input type="text" id="username" class="w-full px-4 py-3 bg-gray-50 border rounded-xl outline-none" placeholder="Username">
+            <input type="password" id="password" class="w-full px-4 py-3 bg-gray-50 border rounded-xl outline-none" placeholder="Password">
+            <button onclick="login()" id="loginBtn" class="w-full bg-amber-600 text-white font-bold py-3.5 rounded-xl shadow-lg hover:bg-amber-700 transition-all">
                 Login to Dashboard
             </button>
             <p class="text-center mt-6 text-sm text-gray-600">New customer? <a href="register.html" class="text-amber-600 font-bold hover:underline">Register Here</a></p>
@@ -31,7 +25,6 @@
     </div>
 
     <script>
-        // API Endpoint from Render
         const API_URL = 'https://cafepro-project.onrender.com/api/orders';
 
         async function login() {
@@ -39,43 +32,36 @@
             const passIn = document.getElementById('password').value;
             const btn = document.getElementById('loginBtn');
             
-            if (!userIn || !passIn) {
-                return alert("Please enter both Username and Password");
-            }
+            if (!userIn || !passIn) return alert("Please enter credentials");
 
-            // UI Feedback
             btn.innerText = "Authenticating...";
             btn.disabled = true;
 
+            // Default Admin Check
+            if(userIn === 'admin' && passIn === '123') {
+                localStorage.setItem('currentUser', JSON.stringify({ username: 'admin', role: 'admin' }));
+                window.location.href = 'admin.html';
+                return;
+            }
+
             try {
-                // Fetch user data from MongoDB via Render API
                 const response = await fetch(API_URL);
                 const data = await response.json();
-
-                // Validate user credentials against database records
+                
+                // Check if user exists in the returned data from MongoDB
                 const validUser = data.find(u => u.username === userIn && u.password === passIn);
 
                 if (validUser) {
-                    // Store session in localStorage
                     localStorage.setItem('currentUser', JSON.stringify(validUser));
-                    
-                    // Redirect based on the assigned role (e.g., admin.html, staff.html)
                     window.location.href = validUser.role.toLowerCase() + '.html'; 
                 } else { 
-                    // Fallback for default admin
-                    if(userIn === 'admin' && passIn === '123') {
-                        const adminUser = { username: 'admin', role: 'admin' };
-                        localStorage.setItem('currentUser', JSON.stringify(adminUser));
-                        window.location.href = 'admin.html';
-                    } else {
-                        alert("Error: Invalid Credentials!");
-                        btn.innerText = "Login to Dashboard";
-                        btn.disabled = false;
-                    }
+                    alert("Error: Invalid Credentials!");
+                    btn.innerText = "Login to Dashboard";
+                    btn.disabled = false;
                 }
             } catch (err) {
-                console.error("Login Error:", err);
-                alert("Server Error: The backend is currently unavailable. Please try again in a few seconds.");
+                console.error(err);
+                alert("Server waking up... please wait 30 seconds and try again.");
                 btn.innerText = "Login to Dashboard";
                 btn.disabled = false;
             }
