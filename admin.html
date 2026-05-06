@@ -6,60 +6,101 @@
     <script src="tailwind.js"></script>
     <link rel="stylesheet" href="css/all.min.css">
 </head>
-<body class="bg-stone-100 pb-10" onload="loadMenu(); loadAdminReport();">
-    <nav class="bg-white shadow-md px-6 py-4 flex justify-between items-center">
+<body class="bg-stone-100 pb-10" onload="initAdmin()">
+    <nav class="bg-white shadow-md px-6 py-4 flex justify-between items-center sticky top-0 z-50">
         <h1 class="text-2xl font-black">Cafe<span class="text-amber-600">Pro</span> Admin</h1>
-        <button onclick="logout()" class="text-red-500 font-bold">Logout</button>
+        <button onclick="logout()" class="text-red-500 hover:text-red-700 font-bold transition flex items-center gap-2">
+            <i class="fa-solid fa-power-off"></i> Logout
+        </button>
     </nav>
 
     <div class="max-w-7xl mx-auto px-6 mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- Menu Management -->
-        <div class="bg-white p-8 rounded-3xl shadow-sm border border-stone-200">
-            <h3 class="text-xl font-bold mb-6">Menu Management</h3>
+        <div class="bg-white p-8 rounded-3xl shadow-sm border border-stone-200 flex flex-col">
+            <h3 class="text-xl font-bold mb-6 flex items-center gap-2"><i class="fa-solid fa-utensils text-emerald-500"></i> Cafe Menu Management</h3>
             <div class="flex gap-2 mb-6">
-                <input type="text" id="itemName" class="flex-1 p-3 bg-stone-50 border rounded-xl" placeholder="Item Name">
-                <input type="number" id="itemPrice" class="w-24 p-3 bg-stone-50 border rounded-xl" placeholder="Price">
-                <button onclick="addMenu()" class="bg-emerald-600 text-white px-6 rounded-xl transition">Add</button>
+                <input type="text" id="itemName" class="flex-1 p-3 bg-stone-50 border rounded-xl outline-none" placeholder="Item Name">
+                <input type="number" id="itemPrice" class="w-24 p-3 bg-stone-50 border rounded-xl outline-none" placeholder="Price">
+                <button onclick="addMenu()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 rounded-xl transition"><i class="fa-solid fa-plus"></i></button>
             </div>
-            <div id="menuList" class="space-y-2"></div>
+            <div id="menuList" class="space-y-2 overflow-y-auto max-h-[400px]"></div>
         </div>
-        
-        <!-- Reports section remains similar -->
+
+        <!-- Orders View (Backend Report) -->
+        <div class="bg-white p-8 rounded-3xl shadow-sm border border-stone-200">
+            <h3 class="text-xl font-bold mb-6">System Live Status</h3>
+            <div id="statusReport" class="p-4 bg-stone-50 rounded-xl text-sm font-mono">
+                Waking up Render API... Please wait.
+            </div>
+        </div>
     </div>
 
     <script>
         const API_URL = 'https://cafepro-project.onrender.com/api/orders';
 
+        function initAdmin() {
+            loadMenu();
+        }
+
         async function addMenu() {
             const name = document.getElementById('itemName').value;
             const price = document.getElementById('itemPrice').value;
 
-            if(!name || !price) return alert("Fill all fields");
+            if(!name || !price) return alert("Please fill all fields!");
 
-            const newItem = { name, price: parseInt(price), type: 'menu_item', available: true };
+            const newItem = { 
+                name: name, 
+                price: parseInt(price), 
+                type: 'menu_item', 
+                available: true 
+            };
 
             try {
-                await fetch(API_URL, {
+                const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(newItem)
                 });
-                alert("Item added to Cloud!");
-                location.reload();
-            } catch (err) { alert("Error adding item"); }
+
+                if(response.ok) {
+                    alert("Success: Item added to Cloud Database!");
+                    document.getElementById('itemName').value = '';
+                    document.getElementById('itemPrice').value = '';
+                    loadMenu(); // Refresh the list
+                }
+            } catch (err) {
+                alert("Error: Server not responding.");
+            }
         }
 
         async function loadMenu() {
-            const res = await fetch(API_URL);
-            const data = await res.json();
-            const items = data.filter(x => x.type === 'menu_item');
-            document.getElementById('menuList').innerHTML = items.map(m => `
-                <div class="flex justify-between p-4 border rounded-2xl bg-white">
-                    <span>${m.name} - <b>${m.price} BDT</b></span>
-                </div>`).join('');
+            const menuList = document.getElementById('menuList');
+            menuList.innerHTML = '<p class="text-stone-400">Loading Menu...</p>';
+
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                
+                // Filter only menu_items
+                const items = data.filter(x => x.type === 'menu_item');
+
+                if(items.length > 0) {
+                    menuList.innerHTML = items.map(m => `
+                        <div class="flex justify-between items-center p-4 border border-stone-100 rounded-2xl bg-stone-50">
+                            <span class="font-bold text-stone-700">${m.name} <span class="text-emerald-600 ml-2">৳${m.price}</span></span>
+                        </div>`).join('');
+                } else {
+                    menuList.innerHTML = '<p class="text-stone-400">No items in cloud yet.</p>';
+                }
+            } catch (err) {
+                menuList.innerHTML = '<p class="text-red-400">Failed to connect to Render.</p>';
+            }
         }
 
-        function logout() { localStorage.removeItem('currentUser'); window.location.href = 'index.html'; }
+        function logout() {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
     </script>
 </body>
 </html>

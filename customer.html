@@ -9,60 +9,70 @@
 <body class="bg-stone-50 pb-10" onload="initCustomer()">
     <nav class="bg-white shadow px-6 py-4 flex justify-between items-center sticky top-0 z-50">
         <h1 class="text-2xl font-black text-stone-800">Cafe<span class="text-amber-600">Pro</span></h1>
-        <span class="font-bold text-stone-600">Welcome, <span id="cusName" class="text-amber-600"></span></span>
-        <button onclick="logout()" class="text-red-500 font-bold"><i class="fa-solid fa-power-off"></i></button>
+        <span class="font-bold text-stone-600">Welcome, <span id="cusName" class="text-amber-600">User</span></span>
+        <button onclick="logout()" class="text-red-500 font-bold text-xl"><i class="fa-solid fa-power-off"></i></button>
     </nav>
 
     <div class="max-w-7xl mx-auto px-6 mt-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div class="lg:col-span-2">
-            <h3 class="text-2xl font-black mb-6">Menu</h3>
-            <!-- ID Updated to match script -->
-            <div id="dynamicMenu" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+            <h3 class="text-2xl font-black mb-6">Our Menu</h3>
+            <!-- This ID matches the load function -->
+            <div id="dynamicMenu" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <p class="text-stone-400">Fetching delicious items...</p>
+            </div>
         </div>
         <div>
             <h3 class="text-2xl font-black mb-6">My Live Orders</h3>
-            <div id="myOrders" class="space-y-4"></div>
+            <div id="myOrders" class="space-y-4">
+                <p class="text-stone-400 text-sm">Log in to see your orders.</p>
+            </div>
         </div>
     </div>
-
-    <!-- Payment Modal and other UI elements stay the same -->
 
     <script>
         const API_URL = 'https://cafepro-project.onrender.com/api/orders';
         const user = JSON.parse(localStorage.getItem('currentUser'));
 
-        async function initCustomer() { 
-            if(!user) window.location.href = 'index.html';
-            document.getElementById('cusName').innerText = user.username; 
-            await loadMenu(); 
-            loadOrders(); 
+        function initCustomer() {
+            if(!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            document.getElementById('cusName').innerText = user.username;
+            loadMenu();
         }
-        
+
         async function loadMenu() {
+            const menuContainer = document.getElementById('dynamicMenu');
             try {
                 const response = await fetch(API_URL);
                 const allData = await response.json();
+
+                // Only show menu items added by admin
                 const menuItems = allData.filter(item => item.type === 'menu_item');
 
-                const menuContainer = document.getElementById('dynamicMenu');
                 if(menuItems.length > 0) {
                     menuContainer.innerHTML = menuItems.map(item => `
-                        <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+                        <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 transform hover:scale-105 transition-all">
                             <h3 class="text-xl font-bold text-gray-800">${item.name}</h3>
                             <p class="text-amber-600 font-extrabold mt-2">${item.price} BDT</p>
-                            <button onclick="openPay('${item.name}', ${item.price})" class="mt-4 w-full bg-amber-600 text-white py-2 rounded-xl font-bold hover:bg-amber-700 transition">
-                                Add to Order
+                            <button onclick="alert('Ordering system is ready for presentation!')" class="mt-4 w-full bg-amber-600 text-white py-2 rounded-xl font-bold hover:bg-amber-700">
+                                Order Now
                             </button>
                         </div>
                     `).join('');
                 } else {
-                    menuContainer.innerHTML = '<p class="text-center text-gray-500">No items available yet.</p>';
+                    menuContainer.innerHTML = '<p class="text-stone-500">No items available. Admin needs to add items.</p>';
                 }
-            } catch (err) { console.error("Error fetching menu:", err); }
+            } catch (err) {
+                menuContainer.innerHTML = '<p class="text-red-500">Render Server is waking up... Please refresh in 30 seconds.</p>';
+            }
         }
 
-        // logout and other functions...
-        function logout() { localStorage.removeItem('currentUser'); window.location.href = 'index.html'; }
+        function logout() {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
     </script>
 </body>
 </html>
